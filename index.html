@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>Clicker Imperial</title>
+    <style>
+        .float-text {
+            position: absolute;
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-80px); }
+        }
+
+        #settings-btn { position: fixed; top: 10px; right: 10px; font-size: 40px; cursor: pointer; user-select: none; z-index: 90; }
+        #shop-btn { position: fixed; bottom: 20px; right: 20px; font-size: 50px; cursor: pointer; user-select: none; z-index: 90; }
+
+        #hunger-bar { position: fixed; top: 60px; left: 10px; font-size: 20px; color: white; z-index: 80; }
+
+        /* Крестик: внутри окна, с нормальной зоной нажатия */
+        .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            line-height: 40px;
+            text-align: center;
+            cursor: pointer;
+            color: white;
+            background: rgba(0, 0, 0, 0.3);
+            border: none;
+            border-radius: 8px;
+            padding: 0;
+            z-index: 130;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px #000;
+            width: 300px;
+            text-align: center;
+            z-index: 100;
+        }
+        .modal input { width: 80%; padding: 10px; margin-top: 10px; border-radius: 5px; border: none; }
+        .modal button { margin-top: 10px; padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; }
+
+        #goldenCoin {
+            display: none;
+            position: fixed;
+            font-size: 60px;
+            cursor: pointer;
+            user-select: none;
+            z-index: 999;
+            pointer-events: auto;
+            text-shadow: 0 0 20px gold, 0 0 40px gold, 0 0 60px gold;
+            animation: coinGlow 1s infinite alternate;
+        }
+        @keyframes coinGlow {
+            0% { transform: scale(1); text-shadow: 0 0 20px gold, 0 0 40px gold; }
+            100% { transform: scale(1.2); text-shadow: 0 0 30px gold, 0 0 60px gold, 0 0 90px gold; }
+        }
+        .golden-screen { background-color: #ffd700 !important; transition: background-color 0.5s; }
+
+        #upgrade-modal { z-index: 110; }
+        #upgrade-modal button.upg { padding: 15px 30px; font-size: 18px; background-color: #ff4500; color: white; }
+        #upgrade-modal button.upg:disabled { background-color: #777; cursor: not-allowed; }
+
+        /* Магазин еды — на весь экран */
+        #food-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: #222;
+            z-index: 120;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+        }
+        .food-item {
+            display: flex; align-items: center; justify-content: space-between;
+            background-color: #333; padding: 15px; margin-bottom: 10px; border-radius: 10px;
+        }
+        .food-item button { padding: 10px 20px; border-radius: 5px; border: none; cursor: pointer; background-color: #ff4500; color: white; }
+    </style>
+</head>
+
+<body style="background-color: #222; color: white; text-align: center; font-family: Arial;">
+
+    <div id="settings-btn">⚙️</div>
+    <div id="shop-btn">🛒</div>
+    <div id="hunger-bar">🥪 Сытость: <span id="hunger">100</span></div>
+
+    <div id="settings-modal" class="modal">
+        <h2>Настройки</h2>
+        <p>Ваш ник:</p>
+        <input type="text" id="nickname-input" placeholder="введите ник">
+        <br>
+        <button id="save-btn">Сохранить</button>
+        <button id="close-btn">Закрыть</button>
+    </div>
+
+    <div id="upgrade-modal" class="modal">
+        <button class="close-btn" onclick="closeUpgrade()">❌</button>
+        <h2>Прокачка квадрата</h2>
+        <p>Уровень: <span id="click-level">1</span></p>
+        <p>Доход за клик: <span id="click-income">1</span></p>
+        <p>Цена прокачки: <span id="upgrade-cost">500</span> монет</p>
+        <button id="upgrade-btn" class="upg" onclick="buyUpgrade()">Прокачать</button>
+        <button onclick="closeUpgrade()" style="background-color: #555; margin-top: 10px;">Назад</button>
+    </div>
+
+    <div id="food-modal">
+        <button class="close-btn" onclick="closeFood()">❌</button>
+        <h2>Магазин еды</h2>
+        <div id="food-list"></div>
+        <button onclick="closeFood()" style="background-color: #555; margin-top: 10px; padding: 15px 30px;">Назад</button>
+    </div>
+
+    <div id="shop-modal" class="modal">
+        <button class="close-btn" onclick="closeShop()">❌</button>
+        <h2>Магазин</h2>
+        <button onclick="openUpgrade()">📈 Магазин прокачки</button>
+        <button onclick="openFood()">🥪 Магазин еды</button>
+    </div>
+
+    <h1>💵 <span id="money">0</span></h1>
+    <audio id="clickSound" src="click.mp3"></audio>
+
+    <div id="square" style="width: 150px; height: 150px; background-color: #ff4500; margin: 100px auto; border-radius: 20px; cursor: pointer; box-shadow: 0 0 20px #ff4500; user-select: none;"></div>
+
+    <div id="goldenCoin">🪙</div>
+
+    <script>
+
+        // === ЗАГРУЗКА СОХРАНЕНИЙ ===
+        let money = Number(localStorage.getItem('money')) || 0;
+        let clickLevel = Number(localStorage.getItem('clickLevel')) || 1;
+        let clickIncome = Number(localStorage.getItem('clickIncome')) || Number(localStorage.getItem('clickIncom')) || 1;
+        let hungerSaved = localStorage.getItem('hunger');
+        let hunger = (hungerSaved === null) ? 100 : Number(hungerSaved);
+
+        let square = document.getElementById('square');
+        let moneyText = document.getElementById('money');
+        let clickSound = document.getElementById('clickSound');
+        moneyText.textContent = money;
+        let settingsBtn = document.getElementById('settings-btn');
+        let settingsmodal = document.getElementById('settings-modal');
+        let nicknameInput = document.getElementById('nickname-input');
+        let saveBtn = document.getElementById('save-btn');
+        let closeBtn = document.getElementById('close-btn');
+        let goldenCoin = document.getElementById('goldenCoin');
+        let shopBtn = document.getElementById('shop-btn');
+        let shopmodal = document.getElementById('shop-modal');
+        let upgrademodal = document.getElementById('upgrade-modal');
+        let foodmodal = document.getElementById('food-modal');
+        let hungerText = document.getElementById('hunger');
+        let clickLevelText = document.getElementById('click-level');
+        let clickIncomeText = document.getElementById('click-income');
+        let upgradeCostText = document.getElementById('upgrade-cost');
+        let upgradeBtn = document.getElementById('upgrade-btn');
+        hungerText.textContent = hunger;
+
+        let nickname = localStorage.getItem('nickname') || 'Игрок';
+        nicknameInput.value = nickname;
+
+        let isGolden = false;
+
+        // === АНТИ-ЧИТ: блокируем правую кнопку мыши ===// Через меню «Обновить» игрок раньше перезапускал страницу
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Сохраняем сытость даже при закрытии вкладки
+        window.addEventListener('beforeunload', function() {
+            localStorage.setItem('hunger', hunger);
+        });
+
+        // Сытость тает со временем
+        setInterval(function() {
+            if (hunger > 0) {
+                hunger = hunger - 1;
+                localStorage.setItem('hunger', hunger);
+                hungerText.textContent = hunger;
+            }
+        }, 20000);
+
+        // === ОКНА ===
+        function openShop() {
+            shopmodal.style.display = 'block';
+            upgrademodal.style.display = 'none';
+            foodmodal.style.display = 'none';
+        }
+        function closeShop() {
+            shopmodal.style.display = 'none';
+            upgrademodal.style.display = 'none';
+            foodmodal.style.display = 'none';
+        }
+        function openUpgrade() {
+            shopmodal.style.display = 'none';
+            upgrademodal.style.display = 'block';
+            updateUpgradeUI();
+        }
+        function closeUpgrade() {
+            upgrademodal.style.display = 'none';
+            shopmodal.style.display = 'block';
+        }
+        function openFood() {
+            shopmodal.style.display = 'none';
+            foodmodal.style.display = 'block';
+            renderFood();
+        }
+        function closeFood() {
+            foodmodal.style.display = 'none';
+            shopmodal.style.display = 'block';
+        }
+        function closeSettings() {
+            settingsmodal.style.display = 'none';
+        }
+
+        // === ПРОКАЧКА ===
+        function updateUpgradeUI() {
+            clickLevelText.textContent = clickLevel;
+            clickIncomeText.textContent = clickIncome;
+            let cost = 500 * clickLevel;
+            upgradeCostText.textContent = cost;
+            upgradeBtn.disabled = money < cost;
+        }
+
+        function buyUpgrade() {
+            let cost = 500 * clickLevel;
+            if (money >= cost) {
+                money = money - cost;
+                clickLevel = clickLevel + 1;
+                clickIncome = clickIncome + 1;
+                localStorage.setItem('money', money);
+                localStorage.setItem('clickLevel', clickLevel);
+                localStorage.setItem('clickIncome', clickIncome);
+                moneyText.textContent = money;
+                updateUpgradeUI();
+            }
+        }
+
+        // === ЕДА ===
+        let foodItems = [
+            { name: '🍞 Хлеб', price: 50, hunger: 10 },
+            { name: '🍎 Яблоко', price: 100, hunger: 20 },
+            { name: '🍕 Пицца', price: 300, hunger: 40 },
+            { name: '🍔 Бургер', price: 500, hunger: 60 },
+            { name: '🍣 Суши', price: 1000, hunger: 100 },
+        ];
+        function renderFood() {
+            let list = document.getElementById('food-list');
+            list.innerHTML = '';
+            for (let i = 0; i < foodItems.length; i++) {
+                let item = foodItems[i];
+                let div = document.createElement('div');
+                div.className = 'food-item';
+                div.innerHTML = '<span>' + item.name + '</span><span>' + item.price + ' монет (+' + item.hunger + ' еды)</span>';
+                let btn = document.createElement('button');
+                btn.textContent = 'Купить';
+                btn.onclick = function() { buyFood(item); };
+                div.appendChild(btn);
+                list.appendChild(div);
+            }
+        }
+        function buyFood(item) {
+            if (money >= item.price) {
+                if (hunger >= 100) {
+                    alert('Квадрат уже сыт! Еда не пропадёт зря — покупай позже.');
+                    return;
+                }
+                money = money - item.price;
+                hunger = Math.min(100, hunger + item.hunger);
+localStorage.setItem('money', money);
+                localStorage.setItem('hunger', hunger);
+                moneyText.textContent = money;
+                hungerText.textContent = hunger;
+            } else {
+                alert('Недостаточно денег!');
+            }
+        }
+
+        // === КЛИК ПО КВАДРАТУ ===
+        square.onclick = function(e) {
+            let clickValue = isGolden ? (clickIncome * 3) : clickIncome;
+            // Голодный квадрат работает вдвое хуже
+            if (hunger <= 30) {
+                clickValue = Math.max(1, Math.floor(clickValue / 2));
+            }
+            money = money + clickValue;
+            localStorage.setItem('money', money);
+            moneyText.textContent = money;
+            try {
+                clickSound.currentTime = 0;
+                let p = clickSound.play();
+                if (p) { p.catch(function() {}); }
+            } catch (err) {}
+
+            let floatText = document.createElement('div');
+            floatText.className = 'float-text';
+            floatText.textContent = '+' + clickValue;
+            floatText.style.left = e.clientX + 'px';
+            floatText.style.top = e.clientY + 'px';
+            document.body.appendChild(floatText);
+            setTimeout(function() { floatText.remove(); }, 1000);
+        };
+
+        // === ЗОЛОТАЯ МОНЕТА (бесплатный бонус) ===
+        function showGoldenCoin() {
+            let x = Math.random() * (window.innerWidth - 100);
+            let y = Math.random() * (window.innerHeight - 100);
+            goldenCoin.style.left = x + 'px';
+            goldenCoin.style.top = y + 'px';
+            goldenCoin.style.display = 'block';
+            setTimeout(function() {
+                goldenCoin.style.display = 'none';
+            }, 4000);
+        }
+        setInterval(showGoldenCoin, 180000);
+
+        goldenCoin.onclick = function() {
+            goldenCoin.style.display = 'none';
+            isGolden = true;
+            document.body.classList.add('golden-screen');
+            setTimeout(function() {
+                isGolden = false;
+                document.body.classList.remove('golden-screen');
+            }, 20000);
+        };
+
+
+        // === КНОПКИ ===
+        shopBtn.onclick = openShop;
+        settingsBtn.onclick = function() { settingsmodal.style.display = 'block'; };
+        closeBtn.onclick = closeSettings;
+
+        saveBtn.onclick = function() {
+            let newNickname = nicknameInput.value.toLowerCase();
+
+            let badWords = /порно|секс|сиськи|бля|сук|еба|ёб|хуй|пизд|наху|нахе|мраз|ганд|гонд|мудак|жоп|пидор|пидр|хер|срат|говн|лох|дура|козёл|козел|тварь|ублюдо|выбля|ахуе|халуп|манда|шлюх|проститут/i;
+
+            if (badWords.test(newNickname)) {
+                alert('Нельзя использовать плохие слова в нике!');
+                nicknameInput.value = '';
+                return;
+            }
+
+            nickname = nicknameInput.value;
+            localStorage.setItem('nickname', nickname);
+            alert('Ник сохранён: ' + nickname);
+            settingsmodal.style.display = 'none';
+        };
+    </script>
+</body>
+</html>
