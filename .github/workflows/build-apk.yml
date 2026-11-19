@@ -15,21 +15,29 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install Bubblewrap CLI
         run: npm install -g @bubblewrap/cli
 
       - name: Initialize Bubblewrap project
         run: |
-          bubblewrap init --url="https://probro123456789101112-stack.github.io/clicker-imperial/" \
+          printf 'y\n' | bubblewrap init --url="https://probro123456789101112-stack.github.io/clicker-imperial/" \
                           --app-name="Clicker Imperial" \
                           --package-id="com.probro.clickerimperial" \
-                          --icon-url="https://probro123456789101112-stack.github.io/clicker-imperial/logo.png"
+                          --icon-url="https://probro123456789101112-stack.github.io/clicker-imperial/launchericon-512x512.png"
 
       - name: Build APK
-        run: bubblewrap build
+        run: |
+          printf 'ClickerImperial2026\nClickerImperial2026\n' | bubblewrap build
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
-          path: app-release.apk
+          name: app-release-apk
+          path: |
+            app-release*.apk
