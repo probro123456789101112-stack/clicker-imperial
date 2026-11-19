@@ -1,0 +1,35 @@
+name: Build PWA to APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Bubblewrap CLI
+        run: npm install -g @bubblewrap/cli
+
+      - name: Initialize Bubblewrap project
+        run: |
+          bubblewrap init --url="https://probro123456789101112-stack.github.io/clicker-imperial/" \
+                          --app-name="Clicker Imperial" \
+                          --package-id="com.probro.clickerimperial" \
+                          --icon-url="https://probro123456789101112-stack.github.io/clicker-imperial/logo.png"
+
+      - name: Build APK
+        run: bubblewrap build
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.apk
+          path: app-release.apk
